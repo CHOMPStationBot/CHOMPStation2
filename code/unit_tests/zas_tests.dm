@@ -7,7 +7,7 @@
 	var/area_path = null
 	var/expectation = UT_NORMAL
 
-/datum/unit_test/zas_area_test/proc/test_air_in_area(var/test_area, var/expectation = UT_NORMAL)
+/datum/unit_test/zas_area_test/proc/test_air_in_area(test_area, expectation = UT_NORMAL)
 	var/test_result = list("result" = 0, "msg" = "")
 
 	var/area/A = locate(test_area)
@@ -38,7 +38,7 @@
 					return test_result
 
 
-			if(UT_NORMAL || UT_NORMAL_COLD)
+			if(UT_NORMAL,UT_NORMAL_COLD)
 				if(abs(pressure - ONE_ATMOSPHERE) > 10)
 					test_result["msg"] = "Pressure out of bounds: [pressure] | [t_msg]"
 					return test_result
@@ -121,3 +121,7 @@
 /datum/unit_test/zas_area_test/cargo_bay
 	name = "ZAS: Cargo Bay"
 	area_path = /area/quartermaster/storage
+
+#undef UT_NORMAL
+#undef UT_VACUUM
+#undef UT_NORMAL_COLD

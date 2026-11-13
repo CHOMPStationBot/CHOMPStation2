@@ -161,7 +161,7 @@
 	name = "\improper Research Outpost Gas Heating"
 	icon_state = "toxmix"
 
-/area/rnd/outpost/testing
+/area/rnd/outpost/toxtest
 	name = "\improper Research Outpost Testing"
 	icon_state = "toxtest"
 
@@ -179,7 +179,7 @@
 //holodeck 3/29/21
 /area/holodeck/source_smoleworld
 	name = "\improper Holodeck - Smolworld"
-	
+
 /area/holodeck/source_gym
 	name = "\improper Holodeck - Gym"
 
@@ -188,3 +188,6 @@
 
 /area/holodeck/source_patient_ward
 	name = "\improper Holodeck - Patient Ward"
+
+/area/holodeck/the_uwu_zone
+	name = "\improper Holodeck - Inside"

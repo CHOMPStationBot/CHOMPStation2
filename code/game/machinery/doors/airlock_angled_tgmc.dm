@@ -3,6 +3,37 @@
 	anim_length_before_finalize = 3
 	icon = 'icons/obj/doors/angled/tgmc/generic.dmi'
 
+// CHOMP ADD START
+/obj/machinery/door/airlock/angled_tgmc/update_icon()
+	cut_overlays()
+	if(density)
+		if(locked && lights && src.arePowerSystemsOn())
+			icon_state = "door_locked"
+		else
+			icon_state = "door_closed"
+		if(p_open || welded)
+			if(p_open)
+				add_overlay("panel_open")
+			if (!(stat & NOPOWER))
+				if(stat & BROKEN)
+					add_overlay("sparks_broken")
+				else if (health < maxhealth * 3/4)
+					add_overlay("sparks_damaged")
+			if(welded)
+				add_overlay("welded")
+		else if (health < maxhealth * 3/4 && !(stat & NOPOWER))
+			add_overlay("sparks_damaged")
+	else if (locked)
+		icon_state = "o_door_locked"
+		if((stat & BROKEN) && !(stat & NOPOWER))
+			add_overlay("sparks_open")
+	else
+		icon_state = "door_open"
+		if((stat & BROKEN) && !(stat & NOPOWER))
+			add_overlay("sparks_open")
+	return
+// CHOMP ADD END
+
 /obj/machinery/door/airlock/angled_tgmc/cell
 	icon = 'icons/obj/doors/angled/tgmc/celldoor.dmi'
 /obj/machinery/door/airlock/angled_tgmc/command
@@ -120,6 +151,10 @@
 	icon_state_closing = "pdoorc1"
 	icon_state = "pdoor1"
 	maxhealth = 600
+	heat_proof = 1 //just so repairing them doesn't try to fireproof something that never takes fire damage
+
+/obj/machinery/door/blast/angled/fire_act(datum/gas_mixture/air, exposed_temperature, exposed_volume)
+	return // blast doors are immune to fire completely.
 
 /obj/machinery/door/blast/angled/open
 	icon_state = "pdoor0"

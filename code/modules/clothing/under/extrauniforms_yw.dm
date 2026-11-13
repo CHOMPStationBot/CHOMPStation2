@@ -77,7 +77,7 @@
 	desc = "A skirted Brig Physician uniform. It has both security and medical protection."
 	name = "brig physician's jumpskirt"
 	icon = 'icons/mob/uniform_yw.dmi'
-	icon_state = "brigphysicianf_s"
+	icon_state = "brigphysicianf"
 	icon_override = 'icons/mob/uniform_yw.dmi'
 	item_state = "brigphysicianf"
 	permeability_coefficient = 0.50
@@ -260,7 +260,7 @@
 	icon_state = "victorianredvest"
 	item_state = "victorianredvest"
 
-/obj/item/clothing/under/yw/victsuit/get_worn_icon_file(var/body_type,var/slot_name,var/default_icon,var/inhands)
+/obj/item/clothing/under/yw/victsuit/get_worn_icon_file(body_type,slot_name,default_icon,inhands)
 	if(body_type == SPECIES_GREY_YW)
 		if(!inhands)
 			return 'icons/mob/species/grey/uniform.dmi'

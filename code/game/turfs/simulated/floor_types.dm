@@ -14,11 +14,13 @@
 	var/image/turf_image
 	var/list/decals
 
-/obj/landed_holder/New(var/location = null, var/turf/simulated/shuttle/turf)
-	..(null)
-	my_turf = turf
+/obj/landed_holder/Initialize(mapload)
+	. = ..()
+	if(loc)
+		my_turf = get_turf(src)
+		moveToNullspace()
 
-/obj/landed_holder/proc/land_on(var/turf/T)
+/obj/landed_holder/proc/land_on(turf/T)
 	//Gather destination information
 	var/obj/landed_holder/new_holder = new(null)
 	T.lighting_clear_overlay()
@@ -31,7 +33,6 @@
 	new_holder.decals = T.decals ? T.decals.Copy() : null
 
 	//Set the destination to be like us
-	T.Destroy()
 	var/turf/simulated/shuttle/new_dest = T.ChangeTurf(my_turf.type,,1)
 	my_turf.lighting_clear_overlay()
 	new_dest.set_dir(my_turf.dir)
@@ -58,7 +59,7 @@
 
 	return new_dest
 
-/obj/landed_holder/proc/leave_turf(var/turf/base_turf = null)
+/obj/landed_holder/proc/leave_turf(turf/base_turf = null)
 	var/turf/new_source
 	//Change our source to whatever it was before
 	if(turf_type)
@@ -90,34 +91,38 @@
 	var/join_flags = 0 //Bitstring to represent adjacency of joining walls
 	var/join_group = "shuttle" //A tag for what other walls to join with. Null if you don't want them to.
 	var/static/list/antilight_cache
+	rad_insulation = RAD_MEDIUM_INSULATION
 
 /turf/simulated/shuttle/Initialize(mapload)
 	. = ..()
 	if(!antilight_cache)
 		antilight_cache = list()
-		for(var/diag in cornerdirs)
+		for(var/diag in GLOB.cornerdirs)
 			var/image/I = image(LIGHTING_ICON, null, icon_state = "diagonals", layer = 10, dir = diag)
 			I.plane = PLANE_LIGHTING
 			antilight_cache["[diag]"] = I
 
+	if(takes_underlays)
+		underlay_update()
+
 /turf/simulated/shuttle/Destroy()
 	landed_holder = null
-	..()
+	return ..()
 
 // For joined corners touching static lighting turfs, add an overlay to cancel out that part of our lighting overlay.
 /turf/simulated/shuttle/proc/update_breaklights()
-	if(join_flags in cornerdirs) //We're joined at an angle
-		//Dynamic lighting dissolver
-		var/turf/T = get_step(src, turn(join_flags,180))
-		if(!T || !T.dynamic_lighting || !get_area(T).dynamic_lighting)
-			add_overlay(antilight_cache["[join_flags]"], TRUE)
-			return
-	cut_overlay(antilight_cache["[join_flags]"], TRUE)
+	cut_overlay(antilight_cache["[join_flags]"])
+	if(!(join_flags in GLOB.cornerdirs)) //We're not joined at an angle
+		return
+	//Dynamic lighting dissolver
+	var/turf/T = get_step(src, turn(join_flags,180))
+	if(!T || !T.dynamic_lighting || !get_area(T).dynamic_lighting)
+		add_overlay(antilight_cache["[join_flags]"])
 
 /turf/simulated/shuttle/proc/underlay_update()
 	if(!takes_underlays)
 		//Basically, if it's not forced, and we don't care, don't do it.
-		return //CHOMP Edit removed 0. Sarcastically quoting the above comment ^ "Basically, if it's not stupposed to store a fucking value, don't store a fucking value."
+		return
 
 	var/turf/under //May be a path or a turf
 	var/mutable_appearance/us = new(src) //We'll use this for changes later
@@ -223,7 +228,7 @@
 	light_on = TRUE
 	block_tele = TRUE
 
-/turf/simulated/shuttle/floor/alien/Initialize()
+/turf/simulated/shuttle/floor/alien/Initialize(mapload)
 	. = ..()
 	icon_state = "alienpod[rand(1, 9)]"
 	update_light()
@@ -252,7 +257,7 @@
 	takes_underlays = 1
 	blocks_air = 1 //I'd make these unsimulated but it just fucks with so much stuff so many other places.
 
-/turf/simulated/shuttle/plating/carry/Initialize()
+/turf/simulated/shuttle/plating/carry/Initialize(mapload)
 	. = ..()
 	icon_state = "carry_ingame"
 
@@ -263,7 +268,7 @@
 	takes_underlays = 1
 	blocks_air = 1
 
-/turf/simulated/shuttle/plating/airless/carry/Initialize()
+/turf/simulated/shuttle/plating/airless/carry/Initialize(mapload)
 	. = ..()
 	icon_state = "carry_ingame"
 
@@ -295,3 +300,87 @@
 /turf/simulated/shuttle/floor/voidcraft/external/dark
 
 /turf/simulated/shuttle/floor/voidcraft/external/light
+
+/turf/simulated/floor/tiled/material
+	icon = 'icons/turf/floors.dmi'
+
+/datum/decl/flooring/tiling/material
+	name = "material floor"
+	icon_base = "steel"
+	icon = 'icons/turf/floors.dmi'
+	flags = TURF_REMOVE_CROWBAR | TURF_CAN_BREAK
+
+/turf/simulated/floor/tiled/material/uranium
+	icon_state = "uranium"
+	initial_flooring = /datum/decl/flooring/tiling/material/uranium
+	var/last_event = 0
+	/// Mutex to prevent infinite recursion when propagating radiation pulses
+	var/active = null
+
+/turf/simulated/floor/tiled/material/uranium/Initialize(mapload)
+	. = ..()
+	RegisterSignal(src, COMSIG_ATOM_PROPAGATE_RAD_PULSE, PROC_REF(radiate))
+
+/turf/simulated/floor/tiled/material/uranium/Destroy()
+	UnregisterSignal(src, COMSIG_ATOM_PROPAGATE_RAD_PULSE)
+	. = ..()
+
+/turf/simulated/floor/tiled/material/uranium/proc/radiate()
+	SIGNAL_HANDLER
+	if(active)
+		return
+	if(world.time <= last_event + 1.5 SECONDS)
+		return
+	active = TRUE
+	radiation_pulse(
+		src,
+		max_range = 1,
+		threshold = RAD_LIGHT_INSULATION,
+		chance = URANIUM_IRRADIATION_CHANCE,
+		minimum_exposure_time = URANIUM_RADIATION_MINIMUM_EXPOSURE_TIME,
+		strength = 1
+	)
+	propagate_radiation_pulse()
+	last_event = world.time
+	active = FALSE
+
+/datum/decl/flooring/tiling/material/uranium
+	name = "uranium floor"
+	icon_base = "uranium"
+	build_type = /obj/item/stack/tile/floor/uranium
+
+/turf/simulated/floor/tiled/material/phoron
+	icon_state = "phoron"
+	initial_flooring = /datum/decl/flooring/tiling/material/phoron
+
+/datum/decl/flooring/tiling/material/phoron
+	name = "phoron floor"
+	icon_base = "phoron"
+	build_type = /obj/item/stack/tile/floor/phoron
+
+/turf/simulated/floor/tiled/material/gold
+	icon_state = "gold"
+	initial_flooring = /datum/decl/flooring/tiling/material/gold
+
+/datum/decl/flooring/tiling/material/gold
+	name = "gold floor"
+	icon_base = "gold"
+	build_type = /obj/item/stack/tile/floor/gold
+
+/turf/simulated/floor/tiled/material/silver
+	icon_state = "silver"
+	initial_flooring = /datum/decl/flooring/tiling/material/silver
+
+/datum/decl/flooring/tiling/material/silver
+	name = "silver floor"
+	icon_base = "silver"
+	build_type = /obj/item/stack/tile/floor/silver
+
+/turf/simulated/floor/tiled/material/diamond
+	icon_state = "diamond"
+	initial_flooring = /datum/decl/flooring/tiling/material/diamond
+
+/datum/decl/flooring/tiling/material/diamond
+	name = "diamond floor"
+	icon_base = "diamond"
+	build_type = /obj/item/stack/tile/floor/diamond
